@@ -12,6 +12,7 @@ class CPU:
         self.register = [0] * 8
         self.pc = 0
         self.sp = 7  # Stack Pointer
+        self.flag = [0] * 8
 
     def ram_read(self, address):
         return self.ram[address]
@@ -70,6 +71,31 @@ class CPU:
         # elif op == "SUB": etc
         elif op == "MUL":
             self.register[reg_a] *= self.register[reg_b]
+        elif op == "CMP":  # Flags = FL they are internal registers
+            # FL 0b00000LGE
+            # If register A is greater than registerB, set the Greater-than G flag to 1, otherwise set it to 0.
+            if self.register[reg_a] < self.register[reg_b]:
+                self.flag[5] = 1  # L
+                self.flag[6] = 0  # G
+                self.flag[7] = 0  # E
+
+            # If they are equal, set the Equal E flag to 1, other set it to 0.
+            # If regA = regB: set Equal [E] flag to 1 (True)
+            elif self.register[reg_a] == self.register[reg_b]:
+                self.flag[5] = 0  # L
+                self.flag[6] = 0  # G
+                self.flag[7] = 1  # E
+
+            # If registerA is less than register B, set the Less-than L flag to 1, otherwise 0.
+            # If regA > regB: set Greater [G] flag to 1 (true)
+            elif self.register[reg_a] > self.register[reg_b]:
+                self.flag[5] = 0  # L
+                self.flag[6] = 1  # G
+                self.flag[7] = 0  # E
+            else:
+                pass
+                # if flag = 0b00000000
+
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -104,6 +130,10 @@ class CPU:
         PUSH = 0b01000101
         CALL = 0b01010000
         RET = 0b00010001
+        CMP = 0b10100111
+        JMP = 0b01010100
+        JEQ = 0b01010101
+        JNE = 0b01010110
 
         running = True
 
@@ -188,3 +218,44 @@ class CPU:
                 self.pc = self.ram_read(return_address)
                 # Increment the SP by 1
                 self.register[SP] += 1
+
+            elif ir == CMP:
+                # Compare 2 values (2 arguments: regA & regB)
+                # Saw is cheatsheet this can be done in ALU. Use ALU here
+                self.alu("CMP", operand_a, operand_b)
+                # print("Register in CMP", self.reg)
+                # print(f"Flag: {self.flag}")
+                # print("--------------------")
+
+                self.pc += 3
+
+            elif ir == JMP:
+                # Jump to the address stored in the given register
+                print(f'JMP Register Address {operand_a}')
+                # set the PC to the address stored in the given register
+                self.pc = self.register[operand_a]
+                print(f'JMP PC address {self.pc}')
+                # print("--------------------")
+            elif ir == JEQ:
+
+                # print(f"CMP: {CMP}, E: {E}")
+                # if [E] flag is true:
+                if self.flag[7] == 1:
+                    self.pc = self.register[operand_a]
+                    # print(f'JEQ PC address {self.pc}')
+                else:
+                    print("Else statement")
+                    self.pc += 2
+
+            elif ir == JNE:
+                # if [E] flag is clear
+                if self.flag[7] != 1:
+                    # jump to the address stored in the given register
+                    self.pc = self.register[operand_a]
+                    print(f'JNE PC address {self.pc}')
+                else:
+                    self.pc += 2
+
+            else:
+                print(f"Error, unknown command {ir}")
+                sys.exit(1)
