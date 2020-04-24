@@ -35,9 +35,9 @@ class CPU:
                     num = comment_split[0].strip()
                     if num == "":
                         continue
-
+                    # Convert binary string to integer
                     value = int(num, 2)
-
+                    # save/write appropriate data to RAM
                     self.ram_write(address, value)
 
                     address += 1
@@ -99,8 +99,11 @@ class CPU:
         PRN = 0b01000111
         HLT = 0b00000001
         MUL = 0b10100010
+        ADD = 0b10100000
         POP = 0b01000110
         PUSH = 0b01000101
+        CALL = 0b01010000
+        RET = 0b00010001
 
         running = True
 
@@ -121,6 +124,10 @@ class CPU:
                 self.register[operand_a] = operand_b
                 self.pc += 3
 
+            elif ir == ADD:
+                self.alu("ADD", operand_a, operand_b)
+                self.pc += 3
+
             elif ir == MUL:  # --> Multiply the values  using ALU
                 # use ALU --> what arguments does it take
                 self.alu("MUL", operand_a, operand_b)
@@ -139,27 +146,45 @@ class CPU:
                 self.pc += 1
 
             elif ir == PUSH:
-                # 1st argument
+                # reg == 1st argument
                 reg = operand_a
-                # grab the values we are putting on the register
+                # grab the values we are putting on the reg
                 val = self.register[reg]
                 # Decrement the SP
                 self.register[SP] -= 1
-                # Copy and write the value in given register to address pointed to by SP
+                # Copy/write value in given register to address pointed to by SP
                 self.ram_write(self.register[SP], val)
                 # Increment PC by 2
                 self.pc += 2
 
             elif ir == POP:
-                # reg is 1st argument
+                # reg == 1st argument
                 reg = operand_a
-                # grab the value we are putting in the register
+                # grab the values we are putting on the register
                 val = self.ram[self.register[SP]]
                 self.register[reg] = val
                 # Increment SP
                 self.register[SP] += 1
+                # Increment PC by 2
                 self.pc += 2
 
-            else:
-                print(f"Error, unkown command {ir}")
-                sys.exit(1)
+            elif ir == CALL:
+                # address of instruction directly after CALL is pushed into stack
+                val = self.pc + 2
+                # PC is set to the address stored in the given register
+                reg_index = operand_a
+
+                subroutine_address = self.register[reg_index]
+                self.register[SP] -= 1
+                self.ram[self.register[SP]] = val
+
+                # jump to that location in RAM --> execute the 1st instruction in the subroutine
+                self.pc = subroutine_address
+
+            elif ir == RET:
+                # return for the subroutine
+                return_address = self.register[SP]
+                # Pop the value from the top of the stack and store it in the PC
+                self.pc = self.ram_read(return_address)
+                # Increment the SP by 1
+                self.register[SP] += 1
